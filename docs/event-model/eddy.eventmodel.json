@@ -1,0 +1,481 @@
+{
+  "name": "Eddy Course Session Event Model",
+  "version": "1.0.0",
+  "description": "Machine-readable Event Modeling source for Eddy's EventCore-backed server behavior. Streams are EventCore consistency boundaries, not traditional aggregates.",
+  "streams": [
+    {
+      "name": "session",
+      "id_pattern": "session-{session_id}",
+      "purpose": "Conversation, lesson progress, assistant-turn lifecycle, tool-call lifecycle, dev-server reload lifecycle, and protocol compatibility for one course session."
+    },
+    {
+      "name": "artifact",
+      "id_pattern": "artifact-{artifact_id}",
+      "purpose": "Eddy's observed history of an artifact, usually a file, that may also change outside Eddy's control."
+    }
+  ],
+  "events": [
+    {
+      "name": "SessionStarted",
+      "stream": "session",
+      "attributes": [
+        { "name": "session_id", "source": "command.session_id" },
+        { "name": "workspace_id", "source": "command.workspace_id" },
+        { "name": "client_protocol_version", "source": "command.client_protocol_version" },
+        { "name": "started_at", "source": "generated.timestamp" }
+      ]
+    },
+    {
+      "name": "LessonSelected",
+      "stream": "session",
+      "attributes": [
+        { "name": "session_id", "source": "command.session_id" },
+        { "name": "lesson_id", "source": "command.lesson_id" },
+        { "name": "selected_at", "source": "generated.timestamp" }
+      ]
+    },
+    {
+      "name": "UserMessageAdded",
+      "stream": "session",
+      "attributes": [
+        { "name": "session_id", "source": "command.session_id" },
+        { "name": "message_id", "source": "generated.uuid" },
+        { "name": "content", "source": "command.content" },
+        { "name": "submitted_at", "source": "generated.timestamp" }
+      ]
+    },
+    {
+      "name": "AssistantTurnStarted",
+      "stream": "session",
+      "attributes": [
+        { "name": "session_id", "source": "command.session_id" },
+        { "name": "turn_id", "source": "generated.uuid" },
+        { "name": "triggering_message_id", "source": "read_model.latest_user_message.message_id" },
+        { "name": "model", "source": "command.model" },
+        { "name": "started_at", "source": "generated.timestamp" }
+      ]
+    },
+    {
+      "name": "AssistantMessageAdded",
+      "stream": "session",
+      "attributes": [
+        { "name": "session_id", "source": "command.session_id" },
+        { "name": "turn_id", "source": "command.turn_id" },
+        { "name": "message_id", "source": "generated.uuid" },
+        { "name": "content", "source": "external.assistant_output.content" },
+        { "name": "added_at", "source": "generated.timestamp" }
+      ]
+    },
+    {
+      "name": "AssistantTurnCompleted",
+      "stream": "session",
+      "attributes": [
+        { "name": "session_id", "source": "command.session_id" },
+        { "name": "turn_id", "source": "command.turn_id" },
+        { "name": "completed_at", "source": "generated.timestamp" }
+      ]
+    },
+    {
+      "name": "ToolCallRequested",
+      "stream": "session",
+      "attributes": [
+        { "name": "session_id", "source": "command.session_id" },
+        { "name": "turn_id", "source": "command.turn_id" },
+        { "name": "tool_call_id", "source": "generated.uuid" },
+        { "name": "tool_name", "source": "external.assistant_output.tool_name" },
+        { "name": "arguments", "source": "external.assistant_output.arguments" },
+        { "name": "requested_at", "source": "generated.timestamp" }
+      ]
+    },
+    {
+      "name": "ToolCallStarted",
+      "stream": "session",
+      "attributes": [
+        { "name": "session_id", "source": "command.session_id" },
+        { "name": "tool_call_id", "source": "command.tool_call_id" },
+        { "name": "started_at", "source": "generated.timestamp" }
+      ]
+    },
+    {
+      "name": "ToolCallCompleted",
+      "stream": "session",
+      "attributes": [
+        { "name": "session_id", "source": "command.session_id" },
+        { "name": "tool_call_id", "source": "command.tool_call_id" },
+        { "name": "result", "source": "external.tool_process.result" },
+        { "name": "completed_at", "source": "generated.timestamp" }
+      ]
+    },
+    {
+      "name": "ToolCallFailed",
+      "stream": "session",
+      "attributes": [
+        { "name": "session_id", "source": "command.session_id" },
+        { "name": "tool_call_id", "source": "command.tool_call_id" },
+        { "name": "error_message", "source": "external.tool_process.error_message" },
+        { "name": "failed_at", "source": "generated.timestamp" }
+      ]
+    },
+    {
+      "name": "ToolCallInterruptedByReload",
+      "stream": "session",
+      "attributes": [
+        { "name": "session_id", "source": "command.session_id" },
+        { "name": "tool_call_id", "source": "read_model.active_tool_calls.tool_call_id" },
+        { "name": "interrupted_at", "source": "generated.timestamp" }
+      ]
+    },
+    {
+      "name": "ArtifactRegistered",
+      "stream": "artifact",
+      "attributes": [
+        { "name": "artifact_id", "source": "command.artifact_id" },
+        { "name": "session_id", "source": "command.session_id" },
+        { "name": "path", "source": "command.path" },
+        { "name": "kind", "source": "command.kind" },
+        { "name": "registered_at", "source": "generated.timestamp" }
+      ]
+    },
+    {
+      "name": "ArtifactReferencedBySession",
+      "stream": "session",
+      "attributes": [
+        { "name": "session_id", "source": "command.session_id" },
+        { "name": "artifact_id", "source": "command.artifact_id" },
+        { "name": "path", "source": "command.path" },
+        { "name": "referenced_at", "source": "generated.timestamp" }
+      ]
+    },
+    {
+      "name": "ArtifactWritten",
+      "stream": "artifact",
+      "attributes": [
+        { "name": "artifact_id", "source": "command.artifact_id" },
+        { "name": "path", "source": "read_model.artifact.path" },
+        { "name": "content_hash", "source": "command.content_hash" },
+        { "name": "written_at", "source": "generated.timestamp" }
+      ]
+    },
+    {
+      "name": "ArtifactObservedChanged",
+      "stream": "artifact",
+      "attributes": [
+        { "name": "artifact_id", "source": "command.artifact_id" },
+        { "name": "path", "source": "external.filesystem.path" },
+        { "name": "previous_hash", "source": "read_model.artifact.content_hash" },
+        { "name": "observed_hash", "source": "external.filesystem.content_hash" },
+        { "name": "observed_at", "source": "generated.timestamp" }
+      ]
+    },
+    {
+      "name": "ArtifactObservedDeleted",
+      "stream": "artifact",
+      "attributes": [
+        { "name": "artifact_id", "source": "command.artifact_id" },
+        { "name": "path", "source": "external.filesystem.path" },
+        { "name": "deleted_at", "source": "generated.timestamp" }
+      ]
+    },
+    {
+      "name": "LessonProgressUpdated",
+      "stream": "session",
+      "attributes": [
+        { "name": "session_id", "source": "command.session_id" },
+        { "name": "lesson_id", "source": "command.lesson_id" },
+        { "name": "progress", "source": "command.progress" },
+        { "name": "updated_at", "source": "generated.timestamp" }
+      ]
+    },
+    {
+      "name": "DevServerReloadRequested",
+      "stream": "session",
+      "attributes": [
+        { "name": "session_id", "source": "command.session_id" },
+        { "name": "reload_id", "source": "generated.uuid" },
+        { "name": "reason", "source": "external.supervisor.reason" },
+        { "name": "requested_at", "source": "generated.timestamp" }
+      ]
+    },
+    {
+      "name": "DevServerReloadCompleted",
+      "stream": "session",
+      "attributes": [
+        { "name": "session_id", "source": "command.session_id" },
+        { "name": "reload_id", "source": "command.reload_id" },
+        { "name": "server_protocol_version", "source": "external.server_handshake.protocol_version" },
+        { "name": "completed_at", "source": "generated.timestamp" }
+      ]
+    },
+    {
+      "name": "DevServerReloadFailed",
+      "stream": "session",
+      "attributes": [
+        { "name": "session_id", "source": "command.session_id" },
+        { "name": "reload_id", "source": "command.reload_id" },
+        { "name": "error_message", "source": "external.build_output.error_message" },
+        { "name": "failed_at", "source": "generated.timestamp" }
+      ]
+    },
+    {
+      "name": "ProtocolIncompatibilityDetected",
+      "stream": "session",
+      "attributes": [
+        { "name": "session_id", "source": "command.session_id" },
+        { "name": "client_protocol_version", "source": "command.client_protocol_version" },
+        { "name": "server_protocol_version", "source": "external.server_handshake.protocol_version" },
+        { "name": "detected_at", "source": "generated.timestamp" }
+      ]
+    }
+  ],
+  "commands": [
+    {
+      "name": "StartSession",
+      "inputs": ["session_id", "workspace_id", "client_protocol_version"],
+      "produces": ["SessionStarted"]
+    },
+    {
+      "name": "SelectLesson",
+      "inputs": ["session_id", "lesson_id"],
+      "produces": ["LessonSelected"]
+    },
+    {
+      "name": "AddUserMessage",
+      "inputs": ["session_id", "content"],
+      "produces": ["UserMessageAdded"]
+    },
+    {
+      "name": "StartAssistantTurn",
+      "inputs": ["session_id", "model"],
+      "reads": ["latest_user_message"],
+      "produces": ["AssistantTurnStarted"]
+    },
+    {
+      "name": "RecordAssistantOutput",
+      "inputs": ["session_id", "turn_id"],
+      "external_inputs": ["assistant_output"],
+      "produces": ["AssistantMessageAdded", "ToolCallRequested"]
+    },
+    {
+      "name": "CompleteAssistantTurn",
+      "inputs": ["session_id", "turn_id"],
+      "produces": ["AssistantTurnCompleted"]
+    },
+    {
+      "name": "StartToolCall",
+      "inputs": ["session_id", "tool_call_id"],
+      "produces": ["ToolCallStarted"]
+    },
+    {
+      "name": "CompleteToolCall",
+      "inputs": ["session_id", "tool_call_id"],
+      "external_inputs": ["tool_process"],
+      "produces": ["ToolCallCompleted"]
+    },
+    {
+      "name": "FailToolCall",
+      "inputs": ["session_id", "tool_call_id"],
+      "external_inputs": ["tool_process"],
+      "produces": ["ToolCallFailed"]
+    },
+    {
+      "name": "InterruptToolCallsForReload",
+      "inputs": ["session_id"],
+      "reads": ["active_tool_calls"],
+      "produces": ["ToolCallInterruptedByReload"]
+    },
+    {
+      "name": "RegisterArtifact",
+      "inputs": ["session_id", "artifact_id", "path", "kind"],
+      "produces": ["ArtifactRegistered", "ArtifactReferencedBySession"]
+    },
+    {
+      "name": "WriteArtifact",
+      "inputs": ["artifact_id", "content_hash"],
+      "reads": ["artifact"],
+      "produces": ["ArtifactWritten"]
+    },
+    {
+      "name": "ObserveArtifactChanged",
+      "inputs": ["artifact_id"],
+      "reads": ["artifact"],
+      "external_inputs": ["filesystem"],
+      "produces": ["ArtifactObservedChanged"]
+    },
+    {
+      "name": "ObserveArtifactDeleted",
+      "inputs": ["artifact_id"],
+      "external_inputs": ["filesystem"],
+      "produces": ["ArtifactObservedDeleted"]
+    },
+    {
+      "name": "UpdateLessonProgress",
+      "inputs": ["session_id", "lesson_id", "progress"],
+      "produces": ["LessonProgressUpdated"]
+    },
+    {
+      "name": "RequestDevServerReload",
+      "inputs": ["session_id"],
+      "external_inputs": ["supervisor"],
+      "produces": ["DevServerReloadRequested"]
+    },
+    {
+      "name": "RecordDevServerReloadCompleted",
+      "inputs": ["session_id", "reload_id"],
+      "external_inputs": ["server_handshake"],
+      "produces": ["DevServerReloadCompleted"]
+    },
+    {
+      "name": "RecordDevServerReloadFailed",
+      "inputs": ["session_id", "reload_id"],
+      "external_inputs": ["build_output"],
+      "produces": ["DevServerReloadFailed"]
+    },
+    {
+      "name": "DetectProtocolIncompatibility",
+      "inputs": ["session_id", "client_protocol_version"],
+      "external_inputs": ["server_handshake"],
+      "produces": ["ProtocolIncompatibilityDetected"]
+    }
+  ],
+  "read_models": [
+    {
+      "name": "latest_user_message",
+      "fields": [
+        { "name": "message_id", "source": "UserMessageAdded.message_id" },
+        { "name": "content", "source": "UserMessageAdded.content" }
+      ]
+    },
+    {
+      "name": "active_tool_calls",
+      "fields": [
+        { "name": "session_id", "source": "ToolCallStarted.session_id" },
+        { "name": "tool_call_id", "source": "ToolCallStarted.tool_call_id" }
+      ]
+    },
+    {
+      "name": "artifact",
+      "fields": [
+        { "name": "artifact_id", "source": "ArtifactRegistered.artifact_id" },
+        { "name": "path", "source": "ArtifactRegistered.path" },
+        { "name": "kind", "source": "ArtifactRegistered.kind" },
+        { "name": "content_hash", "source": "ArtifactWritten.content_hash" }
+      ]
+    },
+    {
+      "name": "session_timeline",
+      "fields": [
+        { "name": "session_id", "source": "SessionStarted.session_id" },
+        { "name": "lesson_id", "source": "LessonSelected.lesson_id" },
+        { "name": "user_messages", "source": "UserMessageAdded.content" },
+        { "name": "assistant_messages", "source": "AssistantMessageAdded.content" },
+        { "name": "tool_call_statuses", "source": "ToolCallStarted.tool_call_id" },
+        { "name": "artifact_refs", "source": "ArtifactReferencedBySession.artifact_id" },
+        { "name": "reload_status", "source": "DevServerReloadRequested.reload_id" }
+      ]
+    },
+    {
+      "name": "lesson_progress",
+      "fields": [
+        { "name": "session_id", "source": "LessonProgressUpdated.session_id" },
+        { "name": "lesson_id", "source": "LessonProgressUpdated.lesson_id" },
+        { "name": "progress", "source": "LessonProgressUpdated.progress" }
+      ]
+    },
+    {
+      "name": "protocol_status",
+      "fields": [
+        { "name": "client_protocol_version", "source": "ProtocolIncompatibilityDetected.client_protocol_version" },
+        { "name": "server_protocol_version", "source": "ProtocolIncompatibilityDetected.server_protocol_version" }
+      ]
+    }
+  ],
+  "slices": [
+    {
+      "type": "state_change",
+      "name": "Start a course session",
+      "commands": ["StartSession"],
+      "events": ["SessionStarted"],
+      "read_models": ["session_timeline"],
+      "given": [],
+      "when": "StartSession",
+      "then": ["SessionStarted"]
+    },
+    {
+      "type": "state_change",
+      "name": "User sends a message",
+      "commands": ["AddUserMessage"],
+      "events": ["UserMessageAdded"],
+      "read_models": ["latest_user_message", "session_timeline"],
+      "given": ["SessionStarted"],
+      "when": "AddUserMessage",
+      "then": ["UserMessageAdded"]
+    },
+    {
+      "type": "automation",
+      "name": "Assistant turn starts after user message",
+      "commands": ["StartAssistantTurn"],
+      "events": ["UserMessageAdded", "AssistantTurnStarted"],
+      "read_models": ["latest_user_message"],
+      "trigger": "UserMessageAdded"
+    },
+    {
+      "type": "translation",
+      "name": "Provider output becomes assistant events",
+      "commands": ["RecordAssistantOutput", "CompleteAssistantTurn"],
+      "events": ["AssistantMessageAdded", "ToolCallRequested", "AssistantTurnCompleted"],
+      "read_models": ["session_timeline"],
+      "external_event": "assistant_output"
+    },
+    {
+      "type": "translation",
+      "name": "Tool process result is recorded",
+      "commands": ["StartToolCall", "CompleteToolCall", "FailToolCall"],
+      "events": ["ToolCallStarted", "ToolCallCompleted", "ToolCallFailed"],
+      "read_models": ["active_tool_calls", "session_timeline"],
+      "external_event": "tool_process"
+    },
+    {
+      "type": "state_change",
+      "name": "Register an artifact",
+      "commands": ["RegisterArtifact"],
+      "events": ["ArtifactRegistered", "ArtifactReferencedBySession"],
+      "read_models": ["artifact", "session_timeline"],
+      "given": ["SessionStarted"],
+      "when": "RegisterArtifact",
+      "then": ["ArtifactRegistered", "ArtifactReferencedBySession"]
+    },
+    {
+      "type": "translation",
+      "name": "Filesystem change updates artifact history",
+      "commands": ["ObserveArtifactChanged", "ObserveArtifactDeleted"],
+      "events": ["ArtifactObservedChanged", "ArtifactObservedDeleted"],
+      "read_models": ["artifact"],
+      "external_event": "filesystem"
+    },
+    {
+      "type": "automation",
+      "name": "Reload interrupts active tool calls",
+      "commands": ["RequestDevServerReload", "InterruptToolCallsForReload"],
+      "events": ["DevServerReloadRequested", "ToolCallInterruptedByReload"],
+      "read_models": ["active_tool_calls"],
+      "trigger": "DevServerReloadRequested"
+    },
+    {
+      "type": "translation",
+      "name": "Build and server handshake record reload outcome",
+      "commands": ["RecordDevServerReloadCompleted", "RecordDevServerReloadFailed"],
+      "events": ["DevServerReloadCompleted", "DevServerReloadFailed"],
+      "read_models": ["session_timeline"],
+      "external_event": "server_handshake"
+    },
+    {
+      "type": "state_view",
+      "name": "Show session timeline",
+      "commands": [],
+      "events": ["UserMessageAdded", "AssistantMessageAdded", "ToolCallCompleted", "ToolCallInterruptedByReload"],
+      "read_models": ["session_timeline"],
+      "given": ["UserMessageAdded", "AssistantMessageAdded"],
+      "then": ["session_timeline displays conversation and tool status"]
+    }
+  ]
+}

@@ -1,18 +1,100 @@
 # Architecture
 
-Eddy is a Rust project for learning about LLM agents and building an agentic coding harness. The architecture should keep the production system, developer workflow, and acceptance tests centered on Rust tooling unless there is a concrete reason to add another runtime.
+Eddy is a Rust project for learning about LLM agents and building an agentic coding harness. The architecture keeps the production system, developer workflow, and acceptance tests centered on Rust tooling unless there is a concrete reason to add another runtime.
 
 ## Current Plan
 
-The project should evolve around a compiled Rust application with a terminal user interface. User-facing behavior should be tested at the process boundary where practical: launch the compiled binary, interact with it through a pseudo-terminal, and assert on the visible terminal state.
+Eddy is a compiled Rust application with a terminal user interface and a separate server process. The normal user-facing entrypoint remains a single command, `eddy`, and the default development workflow remains `cargo run`.
 
-This keeps architectural boundaries clear:
+Running `eddy` starts the TUI and a managed server process. The TUI acts as the supervisor for that server process in the default flow. The server can be restarted or replaced without restarting the TUI, which allows the course interface to stay open while students change server-side code.
 
-- The application owns command handling, agent orchestration, persistence, and TUI rendering.
-- Acceptance tests treat the application as a user would: through terminal input and output.
-- Lower-level Rust tests cover domain logic, parsing, state transitions, and rendering units where direct testing is simpler and more deterministic.
+The server subcommand is internal process plumbing. `eddy server` may exist for supervision, diagnostics, and development, but normal users should not need to run it directly. User-facing documentation should describe `eddy` as the primary entrypoint.
+
+At first, Eddy supports one active managed server per workspace. This keeps descriptor discovery, cleanup, reload behavior, and resume semantics simple. Session switching can be added later as domain behavior rather than as multiple competing managed server processes for the same workspace.
+
+## Process Model
+
+The TUI and server are separate OS processes. The TUI/supervisor owns managed server lifecycle in the default launch mode:
+
+- start the server process
+- discover or write the local server descriptor
+- connect the TUI to the server
+- monitor server health
+- stop the managed server when the TUI exits
+- replace the managed server during development reloads
+
+Server process identity is transient. Durable user/course state is identified by a stable `session_id`, which is shared by the TUI and server. Restarting `eddy` should default to resuming the last session for the current workspace.
+
+The TUI/supervisor stores only lightweight resume and process metadata, such as workspace identity, last session id, server descriptor information, and last known protocol metadata. The server owns authoritative session and domain state.
+
+## Transport
+
+The TUI communicates with the server over HTTP on `127.0.0.1`. Request and response bodies use JSON. Server-to-TUI event streams should use Server-Sent Events initially; WebSockets can be considered later if bidirectional streaming becomes necessary.
+
+The local server descriptor should include the server address and a per-server random token. Non-health endpoints should require that token. The transport is host-native and does not require Docker or an external service.
+
+Custom IPC, local socket protocols, and gRPC are not part of the initial architecture. They can be reconsidered only if HTTP loopback becomes a concrete limitation.
+
+## Protocol Compatibility
+
+The TUI and server perform an explicit protocol version handshake when establishing communication. Communication continues only when the versions are compatible.
+
+If a development reload starts a server with an incompatible protocol, the TUI should show a clear prompt requiring a full Eddy restart rather than failing unpredictably or attempting to continue with mismatched protocol assumptions.
+
+## Development Mode
+
+Automatic development mode is enabled only when both conditions are true:
+
+- Eddy is running as a debug build.
+- Eddy is running from its own source tree.
+
+Explicit `--dev` and `--no-dev` overrides should be available for tests, demos, and unusual environments.
+
+In development mode, the TUI/supervisor watches server-relevant source files and rebuilds the server with Cargo after debounced changes. If the build fails, the current server remains running and the TUI displays build output. If the build succeeds, the supervisor gracefully drains and replaces the managed server, then reconnects the TUI.
+
+In-flight tool calls receive a grace period during server replacement. Conversation and session state must survive through durable server state, but active tool calls are not automatically resumed. If replacement interrupts a tool call, the server records that interruption explicitly.
+
+## Durable State
+
+The server owns durable session and domain state using EventCore with the SQLite adapter. EventCore streams are the source of truth for persisted server behavior.
+
+Eddy uses EventCore commands and stream declarations rather than traditional aggregate classes. Stream boundaries are consistency boundaries for command execution and replay, not fixed object hierarchy boundaries.
+
+The primary streams are:
+
+- `session-{session_id}` for conversation, lesson progress, assistant turns, tool-call lifecycle, reload facts, and protocol compatibility
+- `artifact-{artifact_id}` for Eddy's observed history of an artifact, such as a file, that may change outside Eddy's control
+
+Operations that need consistency across a session and artifact should declare the necessary EventCore streams for that command. Artifacts remain separate because the underlying filesystem may change independently from Eddy.
+
+## Event Model
+
+Server behavior is described with Event Modeling and kept as a source of truth for implementation and tests. The model should describe:
+
+- state changes
+- state views
+- automations
+- translations
+- Given/When/Then scenarios for state changes
+- Given/Then scenarios for read models
+- information-completeness sources for event and read-model attributes
+
+The machine-readable event model lives at `docs/event-model/eddy.eventmodel.json`. It should be updated before or alongside behavior changes.
+
+The repository includes scripts for working with the model:
+
+- `scripts/validate_event_model.py` validates structural references and information completeness.
+- `scripts/render_event_model.py` renders the model as human-readable HTML.
+
+## Read Models
+
+The TUI does not reconstruct EventCore state directly. The server exposes TUI-oriented read/query models over the HTTP protocol, such as session snapshots, conversation timelines, lesson progress, reload status, protocol status, and active tool-call status.
+
+Read models are server-owned. This keeps EventCore stream shape and projection logic out of the TUI and allows the protocol to remain stable even if internal event streams evolve.
 
 ## Acceptance Testing
+
+User-facing behavior should be tested at the process boundary where practical: launch the compiled binary, interact with it through a pseudo-terminal, and assert on the visible terminal state.
 
 The planned acceptance testing stack is:
 
@@ -20,7 +102,7 @@ The planned acceptance testing stack is:
 - `portable-pty` or `expectrl` for pseudo-terminal control
 - `vt100` for parsing terminal output into an inspectable screen model
 
-The harness should exercise the compiled binary rather than linking directly to UI internals. This gives confidence that terminal setup, alternate-screen behavior, key handling, rendering, and process-level integration work together.
+The harness should exercise the compiled binary rather than linking directly to UI internals. This gives confidence that terminal setup, alternate-screen behavior, key handling, rendering, process supervision, server startup, and process-level integration work together.
 
 Useful harness capabilities will include:
 
@@ -35,7 +117,9 @@ Useful harness capabilities will include:
 
 The test suite should use multiple layers rather than making all behavior tests end-to-end:
 
-- Unit tests for pure Rust logic and state transitions
+- Unit tests for pure Rust logic, EventCore command behavior, state reconstruction, and protocol compatibility checks
+- Validation tests for the machine-readable event model
+- Integration tests that spawn the server process, connect over HTTP loopback, and verify protocol behavior
 - Snapshot or component tests for deterministic TUI rendering units, if the chosen TUI framework supports them
 - Cucumber acceptance tests for user-visible workflows through a real pseudo-terminal
 - Smoke tests for installation, startup, and basic command execution
@@ -53,9 +137,8 @@ The Rust-native testing decision avoids adding Node as a required test runtime a
 Several architectural areas remain intentionally open until implementation creates concrete needs:
 
 - the exact TUI framework
-- the internal agent orchestration model
-- persistence boundaries and data formats
 - provider abstractions for LLM APIs
+- the detailed command/event vocabulary within the accepted event model
 - the final shape of the acceptance-test helper API
 
 Decisions in these areas should be recorded as ADRs when they materially constrain future implementation.
