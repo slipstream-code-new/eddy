@@ -4,7 +4,7 @@ Eddy is a Rust project for learning about LLM agents and building an agentic cod
 
 ## Current Plan
 
-Eddy is a compiled Rust application with a terminal user interface and a separate server process. The normal user-facing entrypoint remains a single command, `eddy`, and the default development workflow remains `cargo run`.
+Eddy is a compiled Rust application with a Ratatui-based terminal user interface and a separate server process. The normal user-facing entrypoint remains a single command, `eddy`, and the default development workflow remains `cargo run`.
 
 Running `eddy` starts the TUI and a managed server process. The TUI acts as the supervisor for that server process in the default flow. The server can be restarted or replaced without restarting the TUI, which allows the course interface to stay open while students change server-side code.
 
@@ -40,6 +40,16 @@ Custom IPC, local socket protocols, and gRPC are not part of the initial archite
 The TUI and server perform an explicit protocol version handshake when establishing communication. Communication continues only when the versions are compatible.
 
 If a development reload starts a server with an incompatible protocol, the TUI should show a clear prompt requiring a full Eddy restart rather than failing unpredictably or attempting to continue with mismatched protocol assumptions.
+
+## Terminal User Interface
+
+The TUI uses Ratatui as its Rust-native terminal UI framework. Ratatui provides the rendering model, layout primitives, terminal widgets, and ecosystem compatibility for Eddy's user-facing terminal application.
+
+Ratatui's built-in widgets are appropriate for simple layout, text, lists, tables, tabs, gauges, scrollbars, and charts. For more complex agent UI behavior, Eddy should prefer suitable prebuilt Ratatui-compatible components over implementing interactive widgets directly from primitives. This applies especially to multiline prompt editing, scrollable conversation transcripts, modals and overlays, trees, rich lists, command/menu affordances, logging panes, markdown rendering, spinners, and loading states.
+
+Component dependencies should be introduced only when implementation needs are concrete. Before adding a component crate, verify that it fits the feature, is maintained, has an acceptable license and dependency impact, can be tested in Eddy's TUI testing strategy, and does not impose an unwanted interaction or application architecture. Most component choices are implementation-level decisions; an ADR is needed only if a component or framework materially constrains the architecture.
+
+The current component-library research catalog lives at `docs/research/tui-component-libraries.md`. It should be updated as libraries are discovered, rejected, adopted, or found to be stale.
 
 ## Development Mode
 
@@ -136,7 +146,6 @@ The Rust-native testing decision avoids adding Node as a required test runtime a
 
 Several architectural areas remain intentionally open until implementation creates concrete needs:
 
-- the exact TUI framework
 - provider abstractions for LLM APIs
 - the detailed command/event vocabulary within the accepted event model
 - the final shape of the acceptance-test helper API
