@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>First launch setup</title>
+<style>
+:root { color-scheme: light; --bg: #f7f7f4; --card: #ffffff; --ink: #202124; --muted: #666b70; --line: #d8dadc; --accent: #345995; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+main { max-width: 1040px; margin: 0 auto; padding: 32px 20px 56px; }
+h1 { margin: 0 0 24px; font-size: 2.2rem; line-height: 1.1; }
+h2 { margin: 36px 0 12px; padding-bottom: 6px; border-bottom: 2px solid var(--line); color: var(--accent); }
+h3 { margin: 0 0 10px; }
+h4 { margin: 18px 0 8px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin: 12px 0; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04); }
+.slice { border-left: 5px solid var(--accent); }
+.muted { color: var(--muted); }
+table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { background: #eef1f5; font-weight: 650; }
+.kv th { width: 190px; }
+pre { margin: 0; white-space: pre-wrap; word-break: break-word; font: 0.9rem/1.45 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; }
+ul { margin-top: 8px; }
+@media (max-width: 720px) { main { padding: 22px 12px 40px; } table { display: block; overflow-x: auto; } }
+</style>
+</head>
+<body>
+<main>
+<h1>First launch setup</h1>
+<section id="overview"><h2>Overview</h2>
+<p>A new learner launches Eddy in the terminal, provides a friendly display name, configures OpenAI access, verifies the connection, and is taken to Lesson 1.</p>
+</section>
+<section id="streams"><h2>Streams</h2>
+<article class="card">
+<h3>learner_configuration</h3>
+<table class="kv"><tbody><tr><th>id_pattern</th><td>learner-configuration-{learner_id}</td></tr>
+<tr><th>purpose</th><td>Stores the learner-facing setup choices Eddy needs after first launch.</td></tr></tbody></table>
+</article>
+<article class="card">
+<h3>lesson_workspace</h3>
+<table class="kv"><tbody><tr><th>id_pattern</th><td>lesson-workspace-{repository_id}</td></tr>
+<tr><th>purpose</th><td>Tracks preparation of the local repository workspace for the active lesson.</td></tr></tbody></table>
+</article>
+</section>
+<section id="timeline"><h2>Timeline / Slices</h2>
+<article class="card slice">
+<h3>1. Show setup when learner setup is missing or invalid</h3>
+<table class="kv"><tbody><tr><th>given</th><td><pre>[]</pre></td></tr>
+<tr><th>then</th><td><pre>[
+  &quot;when no saved_first_launch_setup exists, Eddy shows a greeting, required display name input, OpenAI API key input, OPENAI_API_KEY default if present, option to override the default, and submit action&quot;,
+  &quot;when saved OpenAI access can no longer be verified on launch, Eddy shows setup again with an inline message and lets the learner correct the key&quot;,
+  &quot;showing this screen and dismissing it are UI behavior and are not recorded as events&quot;
+]</pre></td></tr>
+<tr><th>type</th><td>state_view</td></tr></tbody></table>
+<h4>Events</h4>
+<ul>
+<li>FirstLaunchSetupCompleted</li>
+</ul>
+<h4>Read Models</h4>
+<ul>
+<li>saved_first_launch_setup</li>
+</ul>
+</article>
+<article class="card slice">
+<h3>2. Reject setup with missing display name</h3>
+<table class="kv"><tbody><tr><th>given</th><td><pre>[]</pre></td></tr>
+<tr><th>then</th><td><pre>[
+  &quot;the command is rejected before testing OpenAI&quot;,
+  &quot;no FirstLaunchSetupCompleted event is recorded&quot;,
+  &quot;the setup screen shows an inline message asking the learner to enter a name&quot;
+]</pre></td></tr>
+<tr><th>type</th><td>state_change</td></tr>
+<tr><th>when</th><td>CompleteFirstLaunchSetup with an empty display_name</td></tr></tbody></table>
+<h4>Commands</h4>
+<ul>
+<li>CompleteFirstLaunchSetup</li>
+</ul>
+</article>
+<article class="card slice">
+<h3>3. Reject setup when OpenAI cannot be verified</h3>
+<table class="kv"><tbody><tr><th>given</th><td><pre>[]</pre></td></tr>
+<tr><th>then</th><td><pre>[
+  &quot;the command is rejected without recording FirstLaunchSetupCompleted&quot;,
+  &quot;the setup screen shows an inline error and lets the learner retry&quot;,
+  &quot;the failed key is not stored&quot;
+]</pre></td></tr>
+<tr><th>type</th><td>state_change</td></tr>
+<tr><th>when</th><td>CompleteFirstLaunchSetup with a non-empty display_name and an API key that OpenAI rejects or cannot be reached with</td></tr></tbody></table>
+<h4>Commands</h4>
+<ul>
+<li>CompleteFirstLaunchSetup</li>
+</ul>
+</article>
+<article class="card slice">
+<h3>4. Complete setup with verified OpenAI access</h3>
+<table class="kv"><tbody><tr><th>given</th><td><pre>[]</pre></td></tr>
+<tr><th>then</th><td><pre>[
+  &quot;FirstLaunchSetupCompleted&quot;
+]</pre></td></tr>
+<tr><th>type</th><td>state_change</td></tr>
+<tr><th>when</th><td>CompleteFirstLaunchSetup with a non-empty display_name and an OpenAI API key that verifies successfully</td></tr></tbody></table>
+<h4>Commands</h4>
+<ul>
+<li>CompleteFirstLaunchSetup</li>
+</ul>
+<h4>Events</h4>
+<ul>
+<li>FirstLaunchSetupCompleted</li>
+</ul>
+<h4>Read Models</h4>
+<ul>
+<li>saved_first_launch_setup</li>
+</ul>
+</article>
+<article class="card slice">
+<h3>5. Start Lesson 1 after setup completes</h3>
+<table class="kv"><tbody><tr><th>then</th><td><pre>[
+  &quot;if normal checkout of lessons/lesson-1 succeeds, record LessonOneBranchCheckedOut with preparation_method normal_checkout&quot;,
+  &quot;if normal checkout fails, show git-oriented error details and offer reset-hard recovery&quot;,
+  &quot;if the learner accepts reset-hard recovery and it succeeds, record LessonOneBranchCheckedOut with preparation_method accepted_reset_hard_recovery&quot;,
+  &quot;if branch preparation still fails or the learner declines recovery, do not record LessonOneBranchCheckedOut and keep the learner out of Lesson 1&quot;
+]</pre></td></tr>
+<tr><th>trigger</th><td>FirstLaunchSetupCompleted</td></tr>
+<tr><th>type</th><td>automation</td></tr></tbody></table>
+<h4>Commands</h4>
+<ul>
+<li>StartLessonOne</li>
+</ul>
+<h4>Events</h4>
+<ul>
+<li>FirstLaunchSetupCompleted</li>
+<li>LessonOneBranchCheckedOut</li>
+</ul>
+<h4>Read Models</h4>
+<ul>
+<li>saved_first_launch_setup</li>
+<li>lesson_one_screen</li>
+</ul>
+</article>
+<article class="card slice">
+<h3>6. Display Lesson 1 screen</h3>
+<table class="kv"><tbody><tr><th>given</th><td><pre>[
+  &quot;FirstLaunchSetupCompleted&quot;,
+  &quot;LessonOneBranchCheckedOut&quot;
+]</pre></td></tr>
+<tr><th>then</th><td><pre>[
+  &quot;lesson_one_screen shows the learner&#x27;s saved display name and lesson-1 content after the repository is on lessons/lesson-1&quot;
+]</pre></td></tr>
+<tr><th>type</th><td>state_view</td></tr></tbody></table>
+<h4>Events</h4>
+<ul>
+<li>FirstLaunchSetupCompleted</li>
+<li>LessonOneBranchCheckedOut</li>
+</ul>
+<h4>Read Models</h4>
+<ul>
+<li>lesson_one_screen</li>
+</ul>
+</article>
+</section>
+<section id="commands"><h2>Commands</h2>
+<article class="card">
+<h3>CompleteFirstLaunchSetup</h3>
+<table class="kv"><tbody><tr><th>description</th><td>Verify the submitted OpenAI API key and save the learner setup if the display name is non-empty and OpenAI access works.</td></tr>
+<tr><th>external_inputs</th><td><pre>[
+  &quot;openai_connection_test&quot;
+]</pre></td></tr>
+<tr><th>inputs</th><td><pre>[
+  &quot;learner_id&quot;,
+  &quot;display_name&quot;,
+  &quot;openai_api_key&quot;,
+  &quot;openai_api_key_source&quot;
+]</pre></td></tr>
+<tr><th>produces</th><td><pre>[
+  &quot;FirstLaunchSetupCompleted&quot;
+]</pre></td></tr>
+<tr><th>reads</th><td><pre>[]</pre></td></tr></tbody></table>
+</article>
+<article class="card">
+<h3>StartLessonOne</h3>
+<table class="kv"><tbody><tr><th>description</th><td>Prepare the repository for Lesson 1 and show the Lesson 1 screen. If normal checkout fails, Eddy may offer a reset-hard recovery before recording the successful branch checkout.</td></tr>
+<tr><th>external_inputs</th><td><pre>[
+  &quot;git_checkout_result&quot;
+]</pre></td></tr>
+<tr><th>inputs</th><td><pre>[
+  &quot;lesson_id&quot;,
+  &quot;lesson_branch_name&quot;
+]</pre></td></tr>
+<tr><th>produces</th><td><pre>[
+  &quot;LessonOneBranchCheckedOut&quot;
+]</pre></td></tr>
+<tr><th>reads</th><td><pre>[
+  &quot;saved_first_launch_setup&quot;
+]</pre></td></tr></tbody></table>
+</article>
+</section>
+<section id="events"><h2>Events</h2>
+<article class="card">
+<h3>FirstLaunchSetupCompleted</h3>
+<table class="kv"><tbody><tr><th>description</th><td>The learner submitted a non-empty display name and an OpenAI API key that Eddy verified, and Eddy saved the setup it needs to continue into the course.</td></tr>
+<tr><th>stream</th><td>learner_configuration</td></tr></tbody></table>
+<h4>Attributes</h4>
+<table><thead><tr><th>Attribute</th><th>Type</th><th>Source</th><th>Description</th></tr></thead><tbody><tr><td>learner_id</td><td>string</td><td>command.learner_id</td><td>Stable local learner identifier used for persisted configuration.</td></tr>
+<tr><td>display_name</td><td>string</td><td>command.display_name</td><td>Any non-empty learner-entered value, used verbatim in later course text.</td></tr>
+<tr><td>encrypted_openai_api_key</td><td>encrypted_secret</td><td>command.openai_api_key</td><td>The submitted API key after encryption for SQLite storage; the raw key must not be persisted.</td></tr>
+<tr><td>openai_api_key_source</td><td>string</td><td>command.openai_api_key_source</td><td>Whether the submitted key came from the OPENAI_API_KEY environment default or a learner override.</td></tr>
+<tr><td>encryption_key_identifier</td><td>string</td><td>generated.encryption_key_identifier</td><td>Identifier for the local encryption material Eddy uses to decrypt the stored key later.</td></tr>
+<tr><td>openai_account_identifier</td><td>string</td><td>external.openai_connection_test.account_identifier</td><td>Non-secret identifier from the successful OpenAI test response, if available.</td></tr>
+<tr><td>completed_at</td><td>timestamp</td><td>generated.timestamp</td><td></td></tr></tbody></table>
+</article>
+<article class="card">
+<h3>LessonOneBranchCheckedOut</h3>
+<table class="kv"><tbody><tr><th>description</th><td>Eddy switched the local repository workspace to the Lesson 1 branch.</td></tr>
+<tr><th>stream</th><td>lesson_workspace</td></tr></tbody></table>
+<h4>Attributes</h4>
+<table><thead><tr><th>Attribute</th><th>Type</th><th>Source</th><th>Description</th></tr></thead><tbody><tr><td>repository_id</td><td>string</td><td>generated.local_repository_id</td><td></td></tr>
+<tr><td>learner_id</td><td>string</td><td>read_model.saved_first_launch_setup.learner_id</td><td></td></tr>
+<tr><td>lesson_id</td><td>string</td><td>command.lesson_id</td><td>Expected value: lesson-1.</td></tr>
+<tr><td>lesson_branch_name</td><td>string</td><td>command.lesson_branch_name</td><td>Expected branch: lessons/lesson-1.</td></tr>
+<tr><td>checked_out_branch_name</td><td>string</td><td>external.git_checkout_result.checked_out_branch_name</td><td></td></tr>
+<tr><td>preparation_method</td><td>string</td><td>external.git_checkout_result.preparation_method</td><td>How Eddy reached the lesson branch, such as normal_checkout or accepted_reset_hard_recovery.</td></tr>
+<tr><td>checked_out_at</td><td>timestamp</td><td>generated.timestamp</td><td></td></tr></tbody></table>
+</article>
+</section>
+<section id="read-models"><h2>Read Models</h2>
+<article class="card">
+<h3>saved_first_launch_setup</h3>
+<table class="kv"><tbody><tr><th>description</th><td>Persisted setup information Eddy uses after the OpenAI key has been verified.</td></tr></tbody></table>
+<h4>Field Sources</h4>
+<table><thead><tr><th>Field</th><th>Type</th><th>Source</th><th>Description</th></tr></thead><tbody><tr><td>learner_id</td><td></td><td>FirstLaunchSetupCompleted.learner_id</td><td></td></tr>
+<tr><td>display_name</td><td></td><td>FirstLaunchSetupCompleted.display_name</td><td></td></tr>
+<tr><td>encrypted_openai_api_key</td><td></td><td>FirstLaunchSetupCompleted.encrypted_openai_api_key</td><td></td></tr>
+<tr><td>openai_api_key_source</td><td></td><td>FirstLaunchSetupCompleted.openai_api_key_source</td><td></td></tr>
+<tr><td>encryption_key_identifier</td><td></td><td>FirstLaunchSetupCompleted.encryption_key_identifier</td><td></td></tr>
+<tr><td>openai_account_identifier</td><td></td><td>FirstLaunchSetupCompleted.openai_account_identifier</td><td></td></tr>
+<tr><td>completed_at</td><td></td><td>FirstLaunchSetupCompleted.completed_at</td><td></td></tr></tbody></table>
+</article>
+<article class="card">
+<h3>lesson_one_screen</h3>
+<table class="kv"><tbody><tr><th>description</th><td>The first lesson screen shown after setup finishes and the repository is on the Lesson 1 branch.</td></tr></tbody></table>
+<h4>Field Sources</h4>
+<table><thead><tr><th>Field</th><th>Type</th><th>Source</th><th>Description</th></tr></thead><tbody><tr><td>learner_id</td><td></td><td>LessonOneBranchCheckedOut.learner_id</td><td></td></tr>
+<tr><td>display_name</td><td></td><td>FirstLaunchSetupCompleted.display_name</td><td></td></tr>
+<tr><td>lesson_id</td><td></td><td>LessonOneBranchCheckedOut.lesson_id</td><td></td></tr>
+<tr><td>lesson_branch_name</td><td></td><td>LessonOneBranchCheckedOut.lesson_branch_name</td><td></td></tr>
+<tr><td>ready_at</td><td></td><td>LessonOneBranchCheckedOut.checked_out_at</td><td></td></tr></tbody></table>
+</article>
+</section>
+<section id="scenarios"><h2>Scenarios</h2>
+<p class="muted">No scenarios provided.</p>
+</section>
+</main>
+</body>
+</html>

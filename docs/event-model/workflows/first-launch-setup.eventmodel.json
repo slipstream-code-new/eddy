@@ -1,0 +1,332 @@
+{
+  "name": "First launch setup",
+  "version": "0.1.0",
+  "description": "A new learner launches Eddy in the terminal, provides a friendly display name, configures OpenAI access, verifies the connection, and is taken to Lesson 1.",
+  "scope": "Covers the setup path that runs when Eddy does not yet have valid learner setup: the learner provides a required display name, provides or accepts an OpenAI API key defaulted from OPENAI_API_KEY, Eddy verifies OpenAI access, stores the key encrypted at rest in SQLite, prepares the repository on lessons/lesson-1, and shows Lesson 1. Showing the setup screen, failed validation attempts, and quitting the app are UI behavior, not persisted facts in this workflow. Later lessons, global TUI keyboard shortcuts, support for non-OpenAI providers, subsequent setup edits, and detailed git recovery workflow design are out of scope for this workflow model.",
+  "notes": [
+    "The setup screen appears when no saved setup exists or when saved OpenAI access can no longer be verified.",
+    "The display name is required but can be any non-empty value and is used verbatim in course text.",
+    "The OpenAI API key can default from OPENAI_API_KEY and can be overridden before submit.",
+    "Invalid names or failed OpenAI checks are shown inline and let the learner retry; they are not recorded as events unless a later diagnostic/audit requirement appears.",
+    "Quitting is a global TUI interaction: press Ctrl+C twice to exit, matching common terminal coding harness behavior. It is not a first-launch setup event.",
+    "If preparing the lesson branch fails, Eddy should show enough git detail for a software engineer to understand the failure and offer a recovery action.",
+    "The recovery action for lesson branch preparation is to reset hard onto the lesson branch. Learner-created tool code should live in a gitignored directory so it is preserved across lesson branch changes and reset recovery.",
+    "Handling shutdown while tool calls are in flight is a separate runtime workflow to model later."
+  ],
+  "open_questions": [],
+  "streams": [
+    {
+      "name": "learner_configuration",
+      "id_pattern": "learner-configuration-{learner_id}",
+      "purpose": "Stores the learner-facing setup choices Eddy needs after first launch."
+    },
+    {
+      "name": "lesson_workspace",
+      "id_pattern": "lesson-workspace-{repository_id}",
+      "purpose": "Tracks preparation of the local repository workspace for the active lesson."
+    }
+  ],
+  "events": [
+    {
+      "name": "FirstLaunchSetupCompleted",
+      "stream": "learner_configuration",
+      "description": "The learner submitted a non-empty display name and an OpenAI API key that Eddy verified, and Eddy saved the setup it needs to continue into the course.",
+      "attributes": [
+        {
+          "name": "learner_id",
+          "type": "string",
+          "source": "command.learner_id",
+          "description": "Stable local learner identifier used for persisted configuration."
+        },
+        {
+          "name": "display_name",
+          "type": "string",
+          "source": "command.display_name",
+          "description": "Any non-empty learner-entered value, used verbatim in later course text."
+        },
+        {
+          "name": "encrypted_openai_api_key",
+          "type": "encrypted_secret",
+          "source": "command.openai_api_key",
+          "description": "The submitted API key after encryption for SQLite storage; the raw key must not be persisted."
+        },
+        {
+          "name": "openai_api_key_source",
+          "type": "string",
+          "source": "command.openai_api_key_source",
+          "description": "Whether the submitted key came from the OPENAI_API_KEY environment default or a learner override."
+        },
+        {
+          "name": "encryption_key_identifier",
+          "type": "string",
+          "source": "generated.encryption_key_identifier",
+          "description": "Identifier for the local encryption material Eddy uses to decrypt the stored key later."
+        },
+        {
+          "name": "openai_account_identifier",
+          "type": "string",
+          "source": "external.openai_connection_test.account_identifier",
+          "description": "Non-secret identifier from the successful OpenAI test response, if available."
+        },
+        {
+          "name": "completed_at",
+          "type": "timestamp",
+          "source": "generated.timestamp"
+        }
+      ]
+    },
+    {
+      "name": "LessonOneBranchCheckedOut",
+      "stream": "lesson_workspace",
+      "description": "Eddy switched the local repository workspace to the Lesson 1 branch.",
+      "attributes": [
+        {
+          "name": "repository_id",
+          "type": "string",
+          "source": "generated.local_repository_id"
+        },
+        {
+          "name": "learner_id",
+          "type": "string",
+          "source": "read_model.saved_first_launch_setup.learner_id"
+        },
+        {
+          "name": "lesson_id",
+          "type": "string",
+          "source": "command.lesson_id",
+          "description": "Expected value: lesson-1."
+        },
+        {
+          "name": "lesson_branch_name",
+          "type": "string",
+          "source": "command.lesson_branch_name",
+          "description": "Expected branch: lessons/lesson-1."
+        },
+        {
+          "name": "checked_out_branch_name",
+          "type": "string",
+          "source": "external.git_checkout_result.checked_out_branch_name"
+        },
+        {
+          "name": "preparation_method",
+          "type": "string",
+          "source": "external.git_checkout_result.preparation_method",
+          "description": "How Eddy reached the lesson branch, such as normal_checkout or accepted_reset_hard_recovery."
+        },
+        {
+          "name": "checked_out_at",
+          "type": "timestamp",
+          "source": "generated.timestamp"
+        }
+      ]
+    }
+  ],
+  "commands": [
+    {
+      "name": "CompleteFirstLaunchSetup",
+      "description": "Verify the submitted OpenAI API key and save the learner setup if the display name is non-empty and OpenAI access works.",
+      "inputs": [
+        "learner_id",
+        "display_name",
+        "openai_api_key",
+        "openai_api_key_source"
+      ],
+      "reads": [],
+      "external_inputs": [
+        "openai_connection_test"
+      ],
+      "produces": [
+        "FirstLaunchSetupCompleted"
+      ]
+    },
+    {
+      "name": "StartLessonOne",
+      "description": "Prepare the repository for Lesson 1 and show the Lesson 1 screen. If normal checkout fails, Eddy may offer a reset-hard recovery before recording the successful branch checkout.",
+      "inputs": [
+        "lesson_id",
+        "lesson_branch_name"
+      ],
+      "reads": [
+        "saved_first_launch_setup"
+      ],
+      "external_inputs": [
+        "git_checkout_result"
+      ],
+      "produces": [
+        "LessonOneBranchCheckedOut"
+      ]
+    }
+  ],
+  "read_models": [
+    {
+      "name": "saved_first_launch_setup",
+      "description": "Persisted setup information Eddy uses after the OpenAI key has been verified.",
+      "fields": [
+        {
+          "name": "learner_id",
+          "source": "FirstLaunchSetupCompleted.learner_id"
+        },
+        {
+          "name": "display_name",
+          "source": "FirstLaunchSetupCompleted.display_name"
+        },
+        {
+          "name": "encrypted_openai_api_key",
+          "source": "FirstLaunchSetupCompleted.encrypted_openai_api_key"
+        },
+        {
+          "name": "openai_api_key_source",
+          "source": "FirstLaunchSetupCompleted.openai_api_key_source"
+        },
+        {
+          "name": "encryption_key_identifier",
+          "source": "FirstLaunchSetupCompleted.encryption_key_identifier"
+        },
+        {
+          "name": "openai_account_identifier",
+          "source": "FirstLaunchSetupCompleted.openai_account_identifier"
+        },
+        {
+          "name": "completed_at",
+          "source": "FirstLaunchSetupCompleted.completed_at"
+        }
+      ]
+    },
+    {
+      "name": "lesson_one_screen",
+      "description": "The first lesson screen shown after setup finishes and the repository is on the Lesson 1 branch.",
+      "fields": [
+        {
+          "name": "learner_id",
+          "source": "LessonOneBranchCheckedOut.learner_id"
+        },
+        {
+          "name": "display_name",
+          "source": "FirstLaunchSetupCompleted.display_name"
+        },
+        {
+          "name": "lesson_id",
+          "source": "LessonOneBranchCheckedOut.lesson_id"
+        },
+        {
+          "name": "lesson_branch_name",
+          "source": "LessonOneBranchCheckedOut.lesson_branch_name"
+        },
+        {
+          "name": "ready_at",
+          "source": "LessonOneBranchCheckedOut.checked_out_at"
+        }
+      ]
+    }
+  ],
+  "slices": [
+    {
+      "type": "state_view",
+      "name": "Show setup when learner setup is missing or invalid",
+      "commands": [],
+      "events": [
+        "FirstLaunchSetupCompleted"
+      ],
+      "read_models": [
+        "saved_first_launch_setup"
+      ],
+      "given": [],
+      "then": [
+        "when no saved_first_launch_setup exists, Eddy shows a greeting, required display name input, OpenAI API key input, OPENAI_API_KEY default if present, option to override the default, and submit action",
+        "when saved OpenAI access can no longer be verified on launch, Eddy shows setup again with an inline message and lets the learner correct the key",
+        "showing this screen and dismissing it are UI behavior and are not recorded as events"
+      ]
+    },
+    {
+      "type": "state_change",
+      "name": "Reject setup with missing display name",
+      "commands": [
+        "CompleteFirstLaunchSetup"
+      ],
+      "events": [],
+      "read_models": [],
+      "given": [],
+      "when": "CompleteFirstLaunchSetup with an empty display_name",
+      "then": [
+        "the command is rejected before testing OpenAI",
+        "no FirstLaunchSetupCompleted event is recorded",
+        "the setup screen shows an inline message asking the learner to enter a name"
+      ]
+    },
+    {
+      "type": "state_change",
+      "name": "Reject setup when OpenAI cannot be verified",
+      "commands": [
+        "CompleteFirstLaunchSetup"
+      ],
+      "events": [],
+      "read_models": [],
+      "given": [],
+      "when": "CompleteFirstLaunchSetup with a non-empty display_name and an API key that OpenAI rejects or cannot be reached with",
+      "then": [
+        "the command is rejected without recording FirstLaunchSetupCompleted",
+        "the setup screen shows an inline error and lets the learner retry",
+        "the failed key is not stored"
+      ]
+    },
+    {
+      "type": "state_change",
+      "name": "Complete setup with verified OpenAI access",
+      "commands": [
+        "CompleteFirstLaunchSetup"
+      ],
+      "events": [
+        "FirstLaunchSetupCompleted"
+      ],
+      "read_models": [
+        "saved_first_launch_setup"
+      ],
+      "given": [],
+      "when": "CompleteFirstLaunchSetup with a non-empty display_name and an OpenAI API key that verifies successfully",
+      "then": [
+        "FirstLaunchSetupCompleted"
+      ]
+    },
+    {
+      "type": "automation",
+      "name": "Start Lesson 1 after setup completes",
+      "commands": [
+        "StartLessonOne"
+      ],
+      "events": [
+        "FirstLaunchSetupCompleted",
+        "LessonOneBranchCheckedOut"
+      ],
+      "read_models": [
+        "saved_first_launch_setup",
+        "lesson_one_screen"
+      ],
+      "trigger": "FirstLaunchSetupCompleted",
+      "then": [
+        "if normal checkout of lessons/lesson-1 succeeds, record LessonOneBranchCheckedOut with preparation_method normal_checkout",
+        "if normal checkout fails, show git-oriented error details and offer reset-hard recovery",
+        "if the learner accepts reset-hard recovery and it succeeds, record LessonOneBranchCheckedOut with preparation_method accepted_reset_hard_recovery",
+        "if branch preparation still fails or the learner declines recovery, do not record LessonOneBranchCheckedOut and keep the learner out of Lesson 1"
+      ]
+    },
+    {
+      "type": "state_view",
+      "name": "Display Lesson 1 screen",
+      "commands": [],
+      "events": [
+        "FirstLaunchSetupCompleted",
+        "LessonOneBranchCheckedOut"
+      ],
+      "read_models": [
+        "lesson_one_screen"
+      ],
+      "given": [
+        "FirstLaunchSetupCompleted",
+        "LessonOneBranchCheckedOut"
+      ],
+      "then": [
+        "lesson_one_screen shows the learner's saved display name and lesson-1 content after the repository is on lessons/lesson-1"
+      ]
+    }
+  ]
+}
