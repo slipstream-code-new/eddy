@@ -89,12 +89,14 @@ Server behavior is described with Event Modeling and kept as a source of truth f
 - Given/Then scenarios for read models
 - information-completeness sources for event and read-model attributes
 
-The machine-readable event model lives at `docs/event-model/eddy.eventmodel.json`. It should be updated before or alongside behavior changes.
+Machine-readable workflow event models live under `docs/event-model/workflows/` as `*.eventmodel.json` files. Each file should describe one coherent workflow or use case and should be created from an actual modeling session rather than speculative placeholder behavior. Event models should be updated before or alongside behavior changes.
+
+Generated HTML belongs under `docs/event-model/generated/` and is derived documentation, not the source of truth.
 
 The repository includes scripts for working with the model:
 
-- `scripts/validate_event_model.py` validates structural references and information completeness.
-- `scripts/render_event_model.py` renders the model as human-readable HTML.
+- `scripts/validate_event_model.py` validates structural references and information completeness for one workflow model file.
+- `scripts/render_event_model.py` renders one workflow model file as human-readable HTML.
 
 ## Read Models
 

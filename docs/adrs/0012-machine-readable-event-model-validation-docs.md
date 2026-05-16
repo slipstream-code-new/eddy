@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [ADR 0017: Store Event Models as Per-Workflow JSON Files](0017-per-workflow-event-model-files.md)
 
 ## Context
 
