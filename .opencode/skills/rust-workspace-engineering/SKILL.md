@@ -7,7 +7,11 @@ description: eddy Rust workspace conventions, Nix toolchain use, error handling,
 
 ## Toolchain
 
-Use `just` for routine checks. Nix remains supported for provisioning the pinned Rust toolchain. Prefer focused checks during RGR and `just ci` for the aggregate routine gate.
+Run Rust workspace devtooling through `just` recipes. Nix remains supported for provisioning the pinned Rust toolchain. Prefer focused checks during RGR and `just ci` for the aggregate routine gate.
+
+Rust test recipes must use `cargo nextest`; do not run `cargo test` directly unless a documented nextest-incompatible case requires it.
+
+Modify Rust package dependencies with Cargo package-manager commands such as `cargo add`, `cargo remove`, or `cargo update`. Do not hand-edit dependency entries, versions, or feature lists in `Cargo.toml`. Generated `Cargo.lock` updates from Cargo commands are acceptable.
 
 ## Code Conventions
 
