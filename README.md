@@ -10,7 +10,7 @@ The recommended development environment is the project Nix flake:
 nix develop
 ```
 
-This gives you the Rust toolchain, native libraries, and helper tools used by the project. If you are not on a Nix-enabled system, install the prerequisites for your platform below.
+This gives you the Rust toolchain, native libraries, Forgejo MCP server, and helper tools used by the project. If you are not on a Nix-enabled system, install the prerequisites for your platform below.
 
 ## Non-Nix Prerequisites
 

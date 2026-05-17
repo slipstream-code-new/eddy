@@ -23,4 +23,4 @@ When invoked as a subagent, complete the bounded implementation task directly an
 
 Use `outside-in-tdd` and `outside-in-rgr-microcycle`, record and approve RED before editing production behavior, make at most one behavioral production edit before rerunning the focused command, commit each approved GREEN/refactor checkpoint before the next RED, and preserve unrelated working-tree changes.
 
-Use Forgejo and `tea`; do not introduce GitHub-only workflows.
+Use Forgejo MCP for supported Forgejo issue, pull request, review, and comment workflows; do not use `tea` where the MCP supports the operation, and do not introduce GitHub-only workflows.
