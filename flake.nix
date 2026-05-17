@@ -89,6 +89,7 @@
             cargo-mutants
             cargo-nextest
             cargo-watch
+            forgejo-mcp
             jq
             just
             nodejs
